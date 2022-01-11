@@ -1,0 +1,18 @@
+[package]
+name = "wordsmith"
+version = "0.1.0"
+authors = ["Jerome Boisvert-Chouinard <github@jbchouinard.net>"]
+edition = "2018"
+
+[[bin]]
+name = "wordsmith"
+path = "src/main.rs"
+
+[[bin]]
+name = "wordsmith-solver-benchmark"
+path = "src/benchmark.rs"
+
+[dependencies]
+druid = { git = "https://github.com/linebender/druid.git", features=["im"]}
+lazy_static = "1.4.0"
+rand = "0.8.4"
