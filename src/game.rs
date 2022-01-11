@@ -1,21 +1,19 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use druid::im::Vector;
-use druid::Data;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use crate::words::{WordList, WordSource};
 use crate::{Letter, Word};
 
-#[derive(Clone, Data)]
+#[derive(Clone)]
 pub struct Game {
     pub letter_count: usize,
     pub tries: usize,
     pub solution: String,
     pub wordlist: Rc<WordList>,
-    pub guesses: Vector<GuessResult>,
+    pub guesses: Vec<GuessResult>,
 }
 
 impl Game {
@@ -30,8 +28,8 @@ impl Game {
         Self {
             letter_count,
             wordlist,
-            guesses: Vector::new(),
-            tries: 5,
+            guesses: vec![],
+            tries: 6,
             solution,
         }
     }
@@ -48,7 +46,7 @@ impl Game {
         self.solution = solution;
     }
     pub fn restart(&mut self) {
-        self.guesses = Vector::new();
+        self.guesses = vec![];
     }
     pub fn state(&self) -> State {
         let n = self.guesses.len();
@@ -88,8 +86,8 @@ impl Game {
         match &self.state() {
             State::Unsolved => {
                 let result =
-                    GuessResult::check(&((&guess[..]).into()), &self.solution, self.letter_count);
-                self.guesses.push_back(result.clone());
+                    GuessResult::check(&(&guess[..]).into(), &self.solution, self.letter_count);
+                self.guesses.push(result.clone());
                 Ok(result)
             }
             State::Solved => Err(GuessError::GameFinished(State::Solved)),
@@ -108,22 +106,33 @@ pub enum State {
     Failed,
 }
 
-#[derive(Clone, Debug, Data, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum LetterMatch {
     Exact,
     Partial,
     Wrong,
 }
 
-#[derive(Clone, Debug, Data, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GuessResult {
     pub guess: Word,
-    pub result: Vector<LetterMatch>,
+    pub result: Vec<LetterMatch>,
 }
 
 impl GuessResult {
+    pub fn is_solved(&self) -> bool {
+        for m in &self.result {
+            match m {
+                LetterMatch::Exact => {
+                    continue;
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
     pub fn check(guess_word: &Word, solution: &str, letter_count: usize) -> Self {
-        let mut res: Vector<LetterMatch> = Vector::new();
+        let mut res: Vec<LetterMatch> = vec![];
 
         let solution_word: Word = solution.into();
 
@@ -140,31 +149,20 @@ impl GuessResult {
             let guess_letter: Letter = guess_word[i];
             let solution_letter: Letter = solution_word[i];
             if guess_letter == solution_letter {
-                res.push_back(LetterMatch::Exact);
+                res.push(LetterMatch::Exact);
             } else if count_nonexact_guess[guess_letter.as_index()]
                 < count_nonexact_solution[guess_letter.as_index()]
             {
-                res.push_back(LetterMatch::Partial);
+                res.push(LetterMatch::Partial);
                 count_nonexact_guess[guess_letter.as_index()] += 1;
             } else {
-                res.push_back(LetterMatch::Wrong);
+                res.push(LetterMatch::Wrong);
             }
         }
-        Self {
+        GuessResult {
             guess: guess_word.clone(),
             result: res,
         }
-    }
-    pub fn is_solved(&self) -> bool {
-        for m in &self.result {
-            match m {
-                LetterMatch::Exact => {
-                    continue;
-                }
-                _ => return false,
-            }
-        }
-        true
     }
 }
 
@@ -184,7 +182,6 @@ pub enum LetterState {
 #[cfg(test)]
 mod test {
     use super::*;
-    use druid::im::vector;
     use LetterMatch::*;
 
     #[test]
@@ -192,7 +189,7 @@ mod test {
         let actual = GuessResult::check(&"relax".into(), "relax", 5);
         let expected = GuessResult {
             guess: "relax".into(),
-            result: vector![Exact, Exact, Exact, Exact, Exact],
+            result: vec![Exact, Exact, Exact, Exact, Exact],
         };
         assert_eq!(expected, actual);
         assert!(actual.is_solved());
@@ -203,7 +200,7 @@ mod test {
         let actual = GuessResult::check(&"relax".into(), "bbbbb", 5);
         let expected = GuessResult {
             guess: "relax".into(),
-            result: vector![Wrong, Wrong, Wrong, Wrong, Wrong],
+            result: vec![Wrong, Wrong, Wrong, Wrong, Wrong],
         };
         assert_eq!(expected, actual);
         assert!(!actual.is_solved());
@@ -214,7 +211,7 @@ mod test {
         let actual = GuessResult::check(&"accca".into(), "aaabb", 5);
         let expected = GuessResult {
             guess: "accca".into(),
-            result: vector![Exact, Wrong, Wrong, Wrong, Partial],
+            result: vec![Exact, Wrong, Wrong, Wrong, Partial],
         };
         assert_eq!(expected, actual);
         assert!(!actual.is_solved());
@@ -225,7 +222,7 @@ mod test {
         let actual = GuessResult::check(&"acaaa".into(), "aabbb", 5);
         let expected = GuessResult {
             guess: "acaaa".into(),
-            result: vector![Exact, Wrong, Partial, Wrong, Wrong],
+            result: vec![Exact, Wrong, Partial, Wrong, Wrong],
         };
         assert_eq!(expected, actual);
         assert!(!actual.is_solved());

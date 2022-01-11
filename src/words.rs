@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 use lazy_static::lazy_static;
 
@@ -24,6 +25,7 @@ lazy_static! {
     };
 }
 
+#[derive(Debug, Clone)]
 pub enum WordSource {
     Wordle,
     Scrabble { letter_count: usize, top_n: usize },
@@ -37,6 +39,45 @@ impl WordSource {
             Self::Scrabble { letter_count, .. } => *letter_count,
             Self::Dictionary { letter_count, .. } => *letter_count,
         }
+    }
+}
+
+impl FromStr for WordSource {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+        if s == "wordle" {
+            return Ok(WordSource::Wordle);
+        }
+        let parts: Vec<&str> = s.split(',').collect();
+        if parts.len() != 3 {
+            return Err("invalid word source".to_string());
+        }
+        let source = parts[0];
+        let letter_count: usize = match parts[1].parse() {
+            Ok(n) => n,
+            Err(e) => {
+                return Err(e.to_string());
+            }
+        };
+        let top_n: usize = match parts[2].parse() {
+            Ok(n) => n,
+            Err(e) => {
+                return Err(e.to_string());
+            }
+        };
+        if source == "scrabble" {
+            return Ok(WordSource::Scrabble {
+                letter_count,
+                top_n,
+            });
+        }
+        if source == "dictionary" {
+            return Ok(WordSource::Dictionary {
+                letter_count,
+                top_n,
+            });
+        }
+        Err("invalid word source".to_string())
     }
 }
 
@@ -78,15 +119,24 @@ impl WordList {
     }
 }
 
-fn get_words(wordlist: &str, letter_count: usize) -> Vec<String> {
-    let mut words = vec![];
-    for word in wordlist.split('\n') {
-        let word = word.trim();
-        if word.len() == letter_count {
-            words.push(word.to_string());
+fn is_valid_word(word: &str, letter_count: usize) -> bool {
+    if word.len() != letter_count {
+        return false;
+    }
+    for c in word.chars() {
+        if !('a'..='z').contains(&c) {
+            return false;
         }
     }
-    words
+    true
+}
+
+fn get_words(wordlist: &str, letter_count: usize) -> Vec<String> {
+    wordlist
+        .split('\n')
+        .filter(|w| is_valid_word(w, letter_count))
+        .map(|w| w.to_string())
+        .collect()
 }
 
 fn scrabble_words(letter_count: usize) -> Vec<String> {

@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
 use crate::game::{Game, GuessResult};
 use crate::Word;
 
@@ -5,6 +8,7 @@ const TRESHOLD_BEST: f64 = 0.0;
 const TRESHOLD_GOOD: f64 = 0.125;
 const TRESHOLD_FAST: f64 = 0.25;
 
+#[derive(Debug, Clone)]
 pub enum SolverMode {
     Best,
     Good,
@@ -17,6 +21,18 @@ impl SolverMode {
             Self::Best => TRESHOLD_BEST,
             Self::Good => TRESHOLD_GOOD,
             Self::Fast => TRESHOLD_FAST,
+        }
+    }
+}
+
+impl FromStr for SolverMode {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+        match &s.to_lowercase()[..] {
+            "best" => Ok(Self::Best),
+            "good" => Ok(Self::Good),
+            "fast" => Ok(Self::Fast),
+            _ => Err("invalid solver mode".to_string()),
         }
     }
 }
@@ -48,36 +64,23 @@ impl<'a> Solver<'a> {
             .retain(|solution| gr == &GuessResult::check(&gr.guess, solution, game.letter_count));
     }
 
-    fn count_solutions(game: &Game, gr: &GuessResult, solutions: &Vec<String>) -> usize {
-        let mut sum: usize = 0;
-        for solution in solutions {
-            if gr == &GuessResult::check(&gr.guess, solution, game.letter_count) {
-                sum += 1;
-            }
-        }
-        sum
-    }
-
-    fn compute_expected_n_solutions(&self, guess: &Word) -> f64 {
-        let mut ns: Vec<usize> = vec![];
-        for soln in &self.possible_solutions {
-            let res = GuessResult::check(guess, soln, self.game.letter_count);
-            ns.push(Self::count_solutions(
-                self.game,
-                &res,
-                &self.possible_solutions,
-            ));
+    pub fn compute_expected_n_solutions(&self, guess: &Word) -> f64 {
+        let mut results: HashMap<GuessResult, usize> = HashMap::new();
+        for solution in &self.possible_solutions {
+            let res = GuessResult::check(guess, solution, self.game.letter_count);
+            let n = results.entry(res).or_insert(0);
+            *n += 1;
         }
         let mut sum: f64 = 0.0;
         let mut count: f64 = 0.0;
-        for n in ns {
-            sum += n as f64;
-            count += 1.0;
+        for n in results.values() {
+            sum += (n * n) as f64;
+            count += *n as f64;
         }
         sum / count
     }
 
-    fn find_guess(&self, mode: SolverMode) -> Word {
+    fn find_guess(&self, mode: &SolverMode) -> Word {
         if self.possible_solutions.len() == 1 {
             return (&self.possible_solutions[0][..]).into();
         }
@@ -96,7 +99,7 @@ impl<'a> Solver<'a> {
             if expected_n <= (current_n * mode.value()) {
                 return guess;
             }
-            if expected_n == best_n
+            if (expected_n - best_n).abs() < f64::EPSILON
                 && !self.possible_solutions.contains(&best_guess.to_string())
                 && self.possible_solutions.contains(&guess.to_string())
             {
@@ -109,11 +112,11 @@ impl<'a> Solver<'a> {
         best_guess
     }
 
-    pub fn guess(&mut self, mode: SolverMode) {
+    pub fn guess(&mut self, mode: &SolverMode) {
         // Pre-computed best first guess
         let guess: Word = if self.first_guess {
             self.first_guess = false;
-            "roast".into()
+            "tares".into()
         } else {
             self.find_guess(mode)
         };

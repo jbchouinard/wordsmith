@@ -1,26 +1,23 @@
 use std::fmt;
 use std::ops::Index;
 
-use druid::im::Vector;
-use druid::Data;
-
 pub mod game;
 pub mod solver;
 pub mod words;
 
-#[derive(Debug, Copy, Clone, Data, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Letter(u8);
 
 impl Letter {
     pub fn from_byte(byte: u8) -> Self {
         if !(b'a'..=b'z').contains(&byte) {
-            panic!("letter out of bounds")
+            panic!("letter {} out of bounds", byte)
         }
         Self(byte - 97)
     }
     pub fn from_char(c: char) -> Self {
         if !('a'..='z').contains(&c) {
-            panic!("letter out of bounds")
+            panic!("letter {} out of bounds", c)
         }
         Self::from_byte(c as u8)
     }
@@ -53,14 +50,14 @@ impl From<Letter> for char {
     }
 }
 
-#[derive(Debug, Clone, Data, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Word {
-    pub vec: Vector<Letter>,
+    pub vec: Vec<Letter>,
 }
 
 impl Word {
     pub fn new() -> Self {
-        Self { vec: Vector::new() }
+        Self { vec: vec![] }
     }
     pub fn len(&self) -> usize {
         self.vec.len()
