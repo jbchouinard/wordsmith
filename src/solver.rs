@@ -84,6 +84,9 @@ impl<'a> Solver<'a> {
         if self.possible_solutions.len() == 1 {
             return (&self.possible_solutions[0][..]).into();
         }
+        // possible_guesses is not always in the same order because it comes
+        // from iterating a HashSet therefore the whole function is not
+        // deterministic. should be sorted by frequency?
         let possible_guesses: Vec<Word> = self
             .game
             .wordlist
@@ -94,6 +97,7 @@ impl<'a> Solver<'a> {
         let mut best_guess = possible_guesses[0].clone();
         let current_n = self.possible_solutions.len() as f64;
         let mut best_n = current_n;
+
         for guess in possible_guesses {
             let expected_n = self.compute_expected_n_solutions(&guess);
             if expected_n <= (current_n * mode.value()) {
@@ -114,12 +118,13 @@ impl<'a> Solver<'a> {
 
     pub fn guess(&mut self, mode: &SolverMode) {
         // Pre-computed best first guess
-        let guess: Word = if self.first_guess {
+        let guess: Word = if self.first_guess && self.game.letter_count == 5 {
             self.first_guess = false;
             "tares".into()
         } else {
             self.find_guess(mode)
         };
+        println!("{}", guess);
         let res = self.game.guess(guess.to_string()).unwrap();
         Self::filter_solutions(self.game, &res, &mut self.possible_solutions);
     }

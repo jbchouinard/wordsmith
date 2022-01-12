@@ -25,8 +25,7 @@ fn main() {
     let n_total: usize = allowed_solutions.len();
 
     let start = Instant::now();
-    for (i, solution) in allowed_solutions.iter().enumerate() {
-        println!("Solving game {} of {} ({}).", i, n_total, solution);
+    for (i, solution) in ["hitch"].iter().enumerate() {
         game.set_solution(solution.to_string());
         game.restart();
         let mut solver: Solver = Solver::new(&mut game);
@@ -34,8 +33,21 @@ fn main() {
             solver.guess(&opt.mode);
         }
         match solver.game.state() {
-            State::Solved => n_guesses.push(solver.game.guesses.len()),
-            _ => n_failed += 1,
+            State::Solved => {
+                let n = solver.game.guesses.len();
+                println!(
+                    "{}/{} Solved {} in {} guesses.",
+                    i + 1,
+                    n_total,
+                    solution,
+                    n
+                );
+                n_guesses.push(n);
+            }
+            _ => {
+                println!("{}/{} Failed to solve {}.", i + 1, n_total, solution);
+                n_failed += 1
+            }
         }
     }
     let end = Instant::now();
