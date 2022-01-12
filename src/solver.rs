@@ -2,38 +2,34 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use crate::game::{Game, GuessResult};
+use crate::words::WordSource;
 use crate::Word;
-
-const TRESHOLD_BEST: f64 = 0.0;
-const TRESHOLD_GOOD: f64 = 0.125;
-const TRESHOLD_FAST: f64 = 0.25;
 
 #[derive(Debug, Clone)]
 pub enum SolverMode {
-    Best,
-    Good,
-    Fast,
-}
-
-impl SolverMode {
-    pub fn value(&self) -> f64 {
-        match self {
-            Self::Best => TRESHOLD_BEST,
-            Self::Good => TRESHOLD_GOOD,
-            Self::Fast => TRESHOLD_FAST,
-        }
-    }
+    MinEV,
+    MinLogEV,
+    Minimax,
 }
 
 impl FromStr for SolverMode {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
         match &s.to_lowercase()[..] {
-            "best" => Ok(Self::Best),
-            "good" => Ok(Self::Good),
-            "fast" => Ok(Self::Fast),
+            "minev" => Ok(Self::MinEV),
+            "minlogev" => Ok(Self::MinLogEV),
+            "minimax" => Ok(Self::Minimax),
             _ => Err("invalid solver mode".to_string()),
         }
+    }
+}
+
+pub fn first_guess(mode: &SolverMode, source: &WordSource) -> Option<String> {
+    match (mode, source) {
+        (SolverMode::MinEV, WordSource::Wordle) => Some("tares".to_string()),
+        (SolverMode::Minimax, WordSource::Wordle) => Some("serai".to_string()),
+        (SolverMode::MinLogEV, WordSource::Wordle) => Some("tares".to_string()),
+        _ => None,
     }
 }
 
@@ -64,20 +60,45 @@ impl<'a> Solver<'a> {
             .retain(|solution| gr == &GuessResult::check(&gr.guess, solution, game.letter_count));
     }
 
-    pub fn compute_expected_n_solutions(&self, guess: &Word) -> f64 {
+    fn compute_score_minev(&self, guess: &Word) -> f64 {
         let mut results: HashMap<GuessResult, usize> = HashMap::new();
         for solution in &self.possible_solutions {
             let res = GuessResult::check(guess, solution, self.game.letter_count);
             let n = results.entry(res).or_insert(0);
             *n += 1;
         }
-        let mut sum: f64 = 0.0;
-        let mut count: f64 = 0.0;
-        for n in results.values() {
-            sum += (n * n) as f64;
-            count += *n as f64;
+        results.values().map(|n| (n * n) as f64).sum()
+    }
+
+    fn compute_score_minlogev(&self, guess: &Word) -> f64 {
+        let mut results: HashMap<GuessResult, usize> = HashMap::new();
+        for solution in &self.possible_solutions {
+            let res = GuessResult::check(guess, solution, self.game.letter_count);
+            let n = results.entry(res).or_insert(0);
+            *n += 1;
         }
-        sum / count
+        results
+            .values()
+            .map(|n| (*n as f64 * (*n as f64).log2()))
+            .sum()
+    }
+
+    fn compute_score_minimax(&self, guess: &Word) -> f64 {
+        let mut results: HashMap<GuessResult, usize> = HashMap::new();
+        for solution in &self.possible_solutions {
+            let res = GuessResult::check(guess, solution, self.game.letter_count);
+            let n = results.entry(res).or_insert(0);
+            *n += 1;
+        }
+        *results.values().max().unwrap() as f64
+    }
+
+    pub fn compute_score(&self, guess: &Word, mode: &SolverMode) -> f64 {
+        match *mode {
+            SolverMode::Minimax => self.compute_score_minimax(guess),
+            SolverMode::MinEV => self.compute_score_minev(guess),
+            SolverMode::MinLogEV => self.compute_score_minlogev(guess),
+        }
     }
 
     fn find_guess(&self, mode: &SolverMode) -> Word {
@@ -94,23 +115,21 @@ impl<'a> Solver<'a> {
             .iter()
             .map(|s| (&s[..]).into())
             .collect();
+
         let mut best_guess = possible_guesses[0].clone();
-        let current_n = self.possible_solutions.len() as f64;
-        let mut best_n = current_n;
+        let mut best_score = self.compute_score(&best_guess, mode);
 
         for guess in possible_guesses {
-            let expected_n = self.compute_expected_n_solutions(&guess);
-            if expected_n <= (current_n * mode.value()) {
-                return guess;
-            }
-            if (expected_n - best_n).abs() < f64::EPSILON
+            let score = self.compute_score(&guess, mode);
+            // favor guess which is a potential solution
+            if score == best_score
                 && !self.possible_solutions.contains(&best_guess.to_string())
                 && self.possible_solutions.contains(&guess.to_string())
             {
                 best_guess = guess;
-            } else if expected_n < best_n {
+            } else if score < best_score {
                 best_guess = guess;
-                best_n = expected_n;
+                best_score = score;
             }
         }
         best_guess
@@ -118,13 +137,15 @@ impl<'a> Solver<'a> {
 
     pub fn guess(&mut self, mode: &SolverMode) {
         // Pre-computed best first guess
-        let guess: Word = if self.first_guess && self.game.letter_count == 5 {
+        let guess: Word = if self.first_guess {
             self.first_guess = false;
-            "tares".into()
+            match first_guess(mode, &self.game.wordlist.source) {
+                Some(guess) => (&guess[..]).into(),
+                None => self.find_guess(mode),
+            }
         } else {
             self.find_guess(mode)
         };
-        println!("{}", guess);
         let res = self.game.guess(guess.to_string()).unwrap();
         Self::filter_solutions(self.game, &res, &mut self.possible_solutions);
     }

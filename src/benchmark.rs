@@ -11,7 +11,7 @@ use wordsmith::words::WordSource;
 struct Opt {
     #[structopt(short, long, default_value = "wordle")]
     word_source: WordSource,
-    #[structopt(short, long, default_value = "best")]
+    #[structopt(short, long, default_value = "minev")]
     mode: SolverMode,
 }
 
@@ -25,7 +25,7 @@ fn main() {
     let n_total: usize = allowed_solutions.len();
 
     let start = Instant::now();
-    for (i, solution) in ["hitch"].iter().enumerate() {
+    for (i, solution) in allowed_solutions.iter().enumerate() {
         game.set_solution(solution.to_string());
         game.restart();
         let mut solver: Solver = Solver::new(&mut game);

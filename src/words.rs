@@ -82,15 +82,17 @@ impl FromStr for WordSource {
 }
 
 pub struct WordList {
+    pub source: WordSource,
     pub allowed_solutions: HashSet<String>,
     pub words: HashSet<String>,
 }
 
 impl WordList {
-    fn new<T: AsRef<str>>(words: &[T], allow_top_n_solutions: usize) -> Self {
+    fn new<T: AsRef<str>>(words: &[T], allow_top_n_solutions: usize, source: WordSource) -> Self {
         let mut words: Vec<String> = words.iter().map(|v| v.as_ref().to_string()).collect();
         sort_by_frequency(&mut words);
         Self {
+            source,
             words: words.iter().map(|v| v.to_string()).collect(),
             allowed_solutions: words[..allow_top_n_solutions]
                 .iter()
@@ -100,15 +102,15 @@ impl WordList {
     }
     pub fn from_source(source: &WordSource) -> Self {
         match source {
-            WordSource::Wordle => Self::new(&wordle_words(), 2315),
+            WordSource::Wordle => Self::new(&wordle_words(), 2315, source.clone()),
             WordSource::Scrabble {
                 letter_count,
                 top_n,
-            } => Self::new(&scrabble_words(*letter_count), *top_n),
+            } => Self::new(&scrabble_words(*letter_count), *top_n, source.clone()),
             WordSource::Dictionary {
                 letter_count,
                 top_n,
-            } => Self::new(&dictionary_words(*letter_count), *top_n),
+            } => Self::new(&dictionary_words(*letter_count), *top_n, source.clone()),
         }
     }
     pub fn is_valid_guess(&self, word: &str) -> bool {
