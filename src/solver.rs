@@ -24,11 +24,12 @@ impl FromStr for SolverMode {
     }
 }
 
-pub fn first_guess(mode: &SolverMode, source: &WordSource) -> Option<String> {
-    match (mode, source) {
-        (SolverMode::MinEV, WordSource::Wordle) => Some("tares".to_string()),
-        (SolverMode::Minimax, WordSource::Wordle) => Some("serai".to_string()),
-        (SolverMode::MinLogEV, WordSource::Wordle) => Some("tares".to_string()),
+pub fn first_guess(_mode: &SolverMode, source: &WordSource) -> Option<String> {
+    match source.letter_count() {
+        5 => Some("tares".to_string()),
+        6 => Some("salter".to_string()),
+        7 => Some("saltier".to_string()),
+        8 => Some("notaries".to_string()),
         _ => None,
     }
 }
