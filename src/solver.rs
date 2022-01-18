@@ -106,13 +106,10 @@ impl<'a> Solver<'a> {
         if self.possible_solutions.len() == 1 {
             return (&self.possible_solutions[0][..]).into();
         }
-        // possible_guesses is not always in the same order because it comes
-        // from iterating a HashSet therefore the whole function is not
-        // deterministic. should be sorted by frequency?
         let possible_guesses: Vec<Word> = self
             .game
             .wordlist
-            .words
+            .words_by_frequency
             .iter()
             .map(|s| (&s[..]).into())
             .collect();

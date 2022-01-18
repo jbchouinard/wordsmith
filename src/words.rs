@@ -85,19 +85,24 @@ pub struct WordList {
     pub source: WordSource,
     pub allowed_solutions: HashSet<String>,
     pub words: HashSet<String>,
+    pub words_by_frequency: Vec<String>,
 }
 
 impl WordList {
     fn new<T: AsRef<str>>(words: &[T], allow_top_n_solutions: usize, source: WordSource) -> Self {
-        let mut words: Vec<String> = words.iter().map(|v| v.as_ref().to_string()).collect();
-        sort_by_frequency(&mut words);
+        let mut words_by_frequency: Vec<String> =
+            words.iter().map(|v| v.as_ref().to_string()).collect();
+        sort_by_frequency(&mut words_by_frequency);
+        let words: HashSet<String> = words_by_frequency.iter().cloned().collect();
+        let allowed_solutions: HashSet<String> = words_by_frequency[..allow_top_n_solutions]
+            .iter()
+            .cloned()
+            .collect();
         Self {
             source,
-            words: words.iter().map(|v| v.to_string()).collect(),
-            allowed_solutions: words[..allow_top_n_solutions]
-                .iter()
-                .map(|v| v.to_string())
-                .collect(),
+            words,
+            words_by_frequency,
+            allowed_solutions,
         }
     }
     pub fn from_source(source: &WordSource) -> Self {

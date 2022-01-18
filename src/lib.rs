@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::Index;
 
+pub mod counter;
 pub mod game;
 pub mod solver;
 pub mod words;
