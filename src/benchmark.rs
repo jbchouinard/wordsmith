@@ -37,11 +37,12 @@ fn main() {
             State::Solved => {
                 let n = solver.game.guesses.len();
                 println!(
-                    "{}/{} Solved {} in {} guesses.",
-                    i + 1,
-                    n_total,
-                    solution,
-                    n
+                    "{}",
+                    game.guesses
+                        .iter()
+                        .map(|g| g.guess.to_string().to_string())
+                        .collect::<Vec<String>>()
+                        .join(",")
                 );
                 guess_counter.add(n);
             }
